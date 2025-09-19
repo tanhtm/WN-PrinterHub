@@ -15,6 +15,7 @@ class Config:
     
     def __init__(self):
         self.api_token = os.getenv("WN_API_TOKEN", "CHANGE_ME")
+        self.use_auth = os.getenv("USE_AUTH", "true").lower() in ("true", "1", "yes", "on")
         self.allowed_origins = self._parse_allowed_origins()
         self.printer_default_port = int(os.getenv("WN_PRINTER_DEFAULT_PORT", "9100"))
         self.host = os.getenv("WN_HOST", "0.0.0.0")
@@ -34,13 +35,17 @@ class Config:
     
     def _validate_config(self):
         """Validate configuration values."""
-        if self.api_token == "CHANGE_ME":
+        if not self.use_auth:
+            logger.warning(
+                "WARNING: Authentication is disabled (USE_AUTH=false)! "
+                "This should only be used in secure development environments."
+            )
+        elif self.api_token == "CHANGE_ME":
             logger.warning(
                 "WARNING: Using default API token! "
                 "Please set WN_API_TOKEN environment variable for security!"
             )
-        
-        if self.api_token and len(self.api_token) < 16:
+        elif self.api_token and len(self.api_token) < 16:
             logger.warning(
                 "WARNING: API token is too short! "
                 "Consider using a longer, more secure token."

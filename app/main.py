@@ -149,7 +149,11 @@ class PrintRequest(BaseModel):
 
 # Authentication dependency
 async def authenticate(authorization: str = Header(None)):
-    """Verify Bearer token authentication."""
+    """Verify Bearer token authentication (optional based on USE_AUTH config)."""
+    # Skip authentication if USE_AUTH is false
+    if not config.use_auth:
+        return None
+    
     if not authorization:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
     
@@ -244,7 +248,8 @@ async def health_check():
         "status": "ok",
         "service": "WN-PrinterHub",
         "version": "1.0.0",
-        "timestamp": time.time()
+        "timestamp": time.time(),
+        "authentication": "enabled" if config.use_auth else "disabled"
     }
 
 
@@ -459,8 +464,9 @@ async def startup_event():
     logger.info("WN-PrinterHub starting up...")
     logger.info(f"Default printer port: {config.printer_default_port}")
     logger.info(f"Allowed CORS origins: {config.allowed_origins}")
+    logger.info(f"Authentication: {'enabled' if config.use_auth else 'DISABLED'}")
     
-    if config.api_token == "CHANGE_ME":
+    if config.use_auth and config.api_token == "CHANGE_ME":
         logger.warning("WARNING: Using default API token! Please set WN_API_TOKEN environment variable!")
 
 

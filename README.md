@@ -35,20 +35,16 @@ chung LAN là chạm, gọi là in.”*
 
 ---
 
-## ✨ Tính năng
+## Features
 
-* **Local-first**: chạy tại quầy/PC trong LAN, không phụ thuộc cloud để chạm máy in.
-* **API tối giản**: chỉ cần **IP máy in** (không cần cổng).
-* **Ba chế độ in**:
-  * `text`: chuyển chuỗi → bytes ESC/POS với formatting nâng cao.
-  * `raw_base64`: gửi **bytes ESC/POS** (đã base64) do ứng dụng tạo sẵn.
-  * `receipt`: in hoá đơn định dạng với table, header/footer tự động.
-* **Network Scanner**: tự động tìm máy in trong LAN.
-* **Enhanced Connectivity**: kiểm tra kết nối với thông tin chi tiết.
-* **Bảo mật**: Bearer Token; giới hạn CORS theo domain ứng dụng.
-* **Quản lý môi trường**: dùng **`uv` (Astral)**—nhanh, tái lập, gọn gàng.
-* **Production Ready**: Logging, systemd service, startup scripts.
-* **Healthcheck**: `/health` để giám sát sống/chết.
+- 🖨️ **Printer Management**: Ping printers, test connectivity, and check status
+- 📄 **Receipt Printing**: Generate and print formatted receipts with tables and styling  
+- 📊 **Test Patterns**: Print test pages to verify printer functionality
+- 🌐 **Network Discovery**: Scan LAN for available printers
+- 🔍 **Health Monitoring**: Real-time printer status and diagnostics
+- 🔒 **Optional Authentication**: Bearer token security for production, can be disabled for development
+- 🚀 **CORS Support**: Cross-origin requests with Private Network Access headers
+- 📖 **Interactive API**: Swagger UI documentation at `/docs`
 
 ---
 
@@ -122,7 +118,10 @@ nano .env
 
 **Cấu hình quan trọng trong `.env`:**
 ```bash
-# Token API - ĐỔI THÀNH CHUỖI BẢO MẬT DÀI!
+# Authentication - Set to false for development, true for production  
+USE_AUTH=true
+
+# Token API - ĐỔI THÀNH CHUỖI BẢO MẬT DÀI! (chỉ cần khi USE_AUTH=true)
 WN_API_TOKEN=your_secure_token_here_at_least_32_characters_long
 
 # Cho phép CORS từ domain ứng dụng (nhiều domain ngăn cách bằng dấu phẩy)
@@ -158,7 +157,7 @@ uv run python production.py
 
 ## 🔌 API Reference (Enhanced)
 
-> Các API ghi yêu cầu header `Authorization: Bearer <WN_API_TOKEN>`.
+> **Authentication**: APIs require header `Authorization: Bearer <WN_API_TOKEN>` when `USE_AUTH=true` (default). Set `USE_AUTH=false` in environment to disable authentication for development.
 
 ### Health Check
 
