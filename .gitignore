@@ -8,6 +8,12 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+
+# WN-PrinterHub specific
+.env
+.env.local
+*.log
+logs/
 build/
 develop-eggs/
 dist/
