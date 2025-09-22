@@ -7,7 +7,6 @@ chung LAN là chạm, gọi là in."*
 
 * **Ping & Scan**: kiểm tra và tìm kiếm máy in trong LAN
 * **Print Text**: in văn bản với formatting ESC/POS  
-* **Print Receipt**: in hoá đơn định dạng chuyên nghiệp
 * **Print Raw**: gửi lệnh ESC/POS tùy chỉnh
 
 > Không cùng LAN → không thể kết nối máy in → trả lỗi rõ ràng để UI thông báo.
@@ -16,7 +15,7 @@ chung LAN là chạm, gọi là in."*
 ## 🚀 **Đã Triển Khai & Sẵn Sàng Sử Dụng**
 
 ✅ **Core Features**: Tất cả tính năng cơ bản theo spec  
-✅ **Enhanced APIs**: Scanning, receipt printing, network info  
+✅ **Enhanced APIs**: Network scanning, ESC/POS printing, network info  
 ✅ **Production Ready**: Logging, error handling, validation  
 ✅ **Easy Setup**: Startup scripts và documentation đầy đủ
 
@@ -38,7 +37,7 @@ chung LAN là chạm, gọi là in.”*
 ## Features
 
 - 🖨️ **Printer Management**: Ping printers, test connectivity, and check status
-- 📄 **Receipt Printing**: Generate and print formatted receipts with tables and styling  
+- 📄 **Text & Raw Printing**: Print text with formatting or send custom ESC/POS commands  
 - 📊 **Test Patterns**: Print test pages to verify printer functionality
 - 🌐 **Network Discovery**: Scan LAN for available printers
 - 🔍 **Health Monitoring**: Real-time printer status and diagnostics
@@ -57,10 +56,9 @@ chung LAN là chạm, gọi là in.”*
 WN-PrinterHub (FastAPI, chạy trong LAN)
   ├─ /health                      # kiểm tra service
   ├─ /api/v1/network/info         # thông tin mạng local
-  ├─ /api/v1/printers/ping        # kiểm tra IP máy in (JetDirect)
-  ├─ /api/v1/printers/scan        # tìm máy in trong LAN
-  ├─ /api/v1/print                # in ESC/POS (text/raw_base64)
-  └─ /api/v1/print/receipt        # in hoá đơn định dạng
+  ├─ /api/v1/printers/ping      # kiểm tra kết nối máy in
+  ├─ /api/v1/printers/scan      # quét mạng tìm máy in
+  └─ /api/v1/print              # in ESC/POS (text/raw_base64)
             ▼
 Máy in LAN (JetDirect/RAW 9100)
 ```
@@ -300,34 +298,13 @@ uv run python production.py
 }
 ```
 
-### In hoá đơn định dạng (receipt mode)
-
-**POST** `/api/v1/print/receipt`
-
-```json
-{
-  "printer": { "host": "192.168.1.50", "timeout_ms": 2000 },
-  "items": [
-    { "name": "Phở Bò", "qty": 2, "price": 8.50 },
-    { "name": "Trà Đá", "qty": 1, "price": 2.00 }
-  ],
-  "total": 19.00,
-  "header": "QUẦY BẾP - BÀN T5", 
-  "footer": "Cảm ơn quý khách!",
-  "datetime": "2025-09-19 14:30:00",
-  "encoding": "utf-8"
-}
-```
-
 ### Response (tất cả print endpoints)
 
 ```json
 { 
   "ok": true, 
   "bytes_sent": 164, 
-  "message": "Printed",
-  "items_count": 2,  // chỉ có trong receipt mode
-  "total": 19.00     // chỉ có trong receipt mode
+  "message": "Printed"
 }
 ```
 
@@ -427,31 +404,6 @@ async function pingPrinter(ip) {
   return r.json();
 }
 
-// In hoá đơn định dạng
-async function printReceipt(ip, items, total, options = {}) {
-  const payload = {
-    printer: { host: ip, timeout_ms: 2000 },
-    items: items,
-    total: total,
-    header: options.header || "MY STORE",
-    footer: options.footer || "Thank you!",
-    datetime: new Date().toLocaleString(),
-    encoding: "utf-8"
-  };
-  
-  const r = await fetch(`${HUB}/api/v1/print/receipt`, {
-    method: "POST",
-    mode: "cors",
-    headers: {
-      "Authorization": `Bearer ${TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!r.ok) throw new Error(`Print failed: ${r.status}`);
-  return r.json();
-}
-
 async function printText(ip, text) {
   const payload = {
     printer: { host: ip, timeout_ms: 2000 },
@@ -472,12 +424,8 @@ async function printText(ip, text) {
   return r.json();
 }
 
-// Sử dụng:
 // const printers = await scanPrinters("192.168.1");
-// const result = await printReceipt(printers.printers[0].host, [
-//   {name: "Coffee", qty: 2, price: 3.50}, 
-//   {name: "Donut", qty: 1, price: 2.25}
-// ], 9.25);
+// const result = await printText(printers.printers[0].host, "Hello World!");
 ```
 
 ### Từ ứng dụng Python (desktop/backend) - Enhanced
@@ -498,19 +446,6 @@ def ping(ip):
     return requests.post(f"{HUB}/api/v1/printers/ping", 
         json={"host": ip, "timeout_ms": 1500}, headers=HEAD).json()
 
-def print_receipt(ip, items, total, **options):
-    """In hoá đơn định dạng."""
-    payload = {
-        "printer": {"host": ip, "timeout_ms": 2000},
-        "items": items,
-        "total": total,
-        "header": options.get("header", "MY STORE"),
-        "footer": options.get("footer", "Thank you!"),
-        "datetime": options.get("datetime"),
-        "encoding": "utf-8"
-    }
-    return requests.post(f"{HUB}/api/v1/print/receipt", json=payload, headers=HEAD).json()
-
 def print_text(ip, content):
     payload = {
         "printer": {"host": ip, "timeout_ms": 2000},
@@ -524,10 +459,7 @@ def print_text(ip, content):
 # printers = scan_printers("192.168.1")
 # if printers["printers_found"] > 0:
 #     printer_ip = printers["printers"][0]["host"]
-#     result = print_receipt(printer_ip, [
-#         {"name": "Coffee", "qty": 2, "price": 3.50},
-#         {"name": "Donut", "qty": 1, "price": 2.25}
-#     ], 9.25, header="Coffee Shop", footer="Have a great day!")
+#     result = print_text(printer_ip, "Hello from Python!")
 ```
 
 ---
@@ -603,7 +535,7 @@ WN-PrinterHub/
 ├── app/
 │   ├── main.py              # FastAPI application với tất cả endpoints
 │   ├── config.py            # Configuration management với validation
-│   ├── escpos_utils.py      # ESC/POS utilities & receipt formatting  
+│   ├── escpos_utils.py      # ESC/POS utilities & text formatting  
 │   └── network_utils.py     # Network scanning & enhanced ping
 ├── tests/
 │   └── test_main.py         # Test suite với pytest
@@ -621,7 +553,7 @@ WN-PrinterHub/
 ## 🏆 Implementation Status
 
 ✅ **Core Features**: Hoàn thành 100% theo spec gốc  
-✅ **Enhanced APIs**: Network scan, receipt printing, network info  
+✅ **Enhanced APIs**: Network scanning, ESC/POS printing, network info  
 ✅ **Production Ready**: Logging, systemd, startup scripts  
 ✅ **Developer Tools**: Tests, documentation, type hints  
 ✅ **Security**: Authentication, validation, CORS  
@@ -638,7 +570,7 @@ WN-PrinterHub/
 # app/main.py - Core structure (simplified)
 from fastapi import FastAPI, Depends, HTTPException
 from .config import config
-from .escpos_utils import create_receipt, create_simple_text
+from .escpos_utils import create_simple_text
 from .network_utils import scan_network_for_printers, enhanced_ping
 
 app = FastAPI(title="WN-PrinterHub", version="1.0.0")
@@ -661,10 +593,6 @@ async def scan_printers(body: NetworkScanRequest, _=Depends(authenticate)):
 @app.post("/api/v1/print")
 async def print_document(request: PrintRequest, _=Depends(authenticate)):
     # Text/Raw printing với enhanced ESC/POS processing
-    
-@app.post("/api/v1/print/receipt") 
-async def print_receipt(request: PrintReceiptRequest, _=Depends(authenticate)):
-    # Professional receipt formatting & printing
 ```
 
 ---

@@ -132,42 +132,6 @@ curl -X POST "http://localhost:8088/api/v1/printers/scan" \
   }'
 ```
 
-### Print Text
-```bash
-curl -X POST "http://localhost:8088/api/v1/print" \
-  -H "Authorization: Bearer your_token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "printer": {"host": "192.168.1.50", "timeout_ms": 2000},
-    "mode": "text",
-    "text": "QUẦY BẾP\\nBÀN T5\\nPhở bò x2\\nTrà đá x1\\n",
-    "text_opts": {
-      "encoding": "utf-8",
-      "append_cut": true,
-      "append_newlines": 2
-    }
-  }'
-```
-
-### Print Receipt (Enhanced Feature)
-```bash
-curl -X POST "http://localhost:8088/api/v1/print/receipt" \
-  -H "Authorization: Bearer your_token" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "printer": {"host": "192.168.1.50", "timeout_ms": 2000},
-    "items": [
-      {"name": "Phở Bò", "qty": 2, "price": 8.50},
-      {"name": "Trà Đá", "qty": 1, "price": 2.00}
-    ],
-    "total": 19.00,
-    "header": "QUẦY BẾP - BÀN T5",
-    "footer": "Cảm ơn quý khách!",
-    "datetime": "2025-09-19 14:30:00",
-    "encoding": "utf-8"
-  }'
-```
-
 ## 🧪 Testing
 
 ```bash

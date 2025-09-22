@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 
 from .config import config
-from .escpos_utils import create_receipt, create_simple_text, ESCPOSBuilder
+from .escpos_utils import create_simple_text, ESCPOSBuilder
 from .network_utils import scan_network_for_printers, get_local_network_info, enhanced_ping, validate_ip_address
 
 # Setup logging
@@ -90,24 +90,6 @@ class PrintTextOptions(BaseModel):
     encoding: str = Field("utf-8", description="Text encoding")
     append_cut: bool = Field(True, description="Append paper cut command")
     append_newlines: int = Field(2, ge=0, le=10, description="Number of newlines to append")
-
-
-class ReceiptItem(BaseModel):
-    """Receipt item model."""
-    name: str = Field(..., description="Item name")
-    qty: int = Field(..., ge=1, description="Quantity")
-    price: float = Field(..., ge=0, description="Price per item")
-
-
-class PrintReceiptRequest(BaseModel):
-    """Print receipt request payload."""
-    printer: PrinterTarget
-    items: List[ReceiptItem] = Field(..., description="List of items")
-    total: float = Field(..., ge=0, description="Total amount")
-    header: Optional[str] = Field(None, description="Receipt header")
-    footer: Optional[str] = Field(None, description="Receipt footer") 
-    datetime: Optional[str] = Field(None, description="Date/time string")
-    encoding: str = Field("utf-8", description="Text encoding")
 
 
 class NetworkScanRequest(BaseModel):
@@ -361,76 +343,6 @@ async def print_document(request: PrintRequest, _=Depends(authenticate)):
         )
 
 
-@app.post("/api/v1/print/receipt")
-async def print_receipt(request: PrintReceiptRequest, _=Depends(authenticate)):
-    """Print a formatted receipt."""
-    if not validate_ip_address(request.printer.host):
-        raise HTTPException(status_code=422, detail=f"Invalid IP address: {request.printer.host}")
-    
-    logger.info(f"Receipt print request: {len(request.items)} items, total=${request.total}")
-    
-    try:
-        # Convert request items to dict format
-        items = [
-            {
-                "name": item.name,
-                "qty": item.qty,
-                "price": item.price
-            }
-            for item in request.items
-        ]
-        
-        # Create receipt data
-        receipt_options = {
-            "encoding": request.encoding,
-            "cut": True,
-            "feed_lines": 3
-        }
-        
-        if request.header:
-            receipt_options["header"] = request.header
-        if request.footer:
-            receipt_options["footer"] = request.footer
-        if request.datetime:
-            receipt_options["datetime"] = request.datetime
-            
-        data = create_receipt(items, request.total, **receipt_options)
-        
-        logger.info(f"Generated receipt data: {len(data)} bytes")
-        
-        # Send to printer
-        bytes_sent = await tcp_send(
-            request.printer.host,
-            config.printer_default_port,
-            data,
-            request.printer.timeout_ms
-        )
-        
-        logger.info(f"Successfully sent receipt ({bytes_sent} bytes) to printer {request.printer.host}")
-        
-        return {
-            "ok": True,
-            "bytes_sent": bytes_sent,
-            "message": "Receipt printed",
-            "items_count": len(request.items),
-            "total": request.total
-        }
-        
-    except asyncio.TimeoutError:
-        logger.error(f"Timeout sending receipt to printer {request.printer.host}:{config.printer_default_port}")
-        raise HTTPException(
-            status_code=504,
-            detail=f"Timeout sending to {request.printer.host}:{config.printer_default_port}"
-        )
-        
-    except Exception as e:
-        logger.error(f"Receipt print error to {request.printer.host}:{config.printer_default_port}: {str(e)}")
-        raise HTTPException(
-            status_code=502,
-            detail=f"Print error: {str(e)}"
-        )
-
-
 @app.get("/")
 async def root():
     """Root endpoint with service information."""
@@ -443,14 +355,12 @@ async def root():
             "network_info": "GET /api/v1/network/info",
             "ping": "POST /api/v1/printers/ping",
             "scan": "POST /api/v1/printers/scan", 
-            "print": "POST /api/v1/print",
-            "print_receipt": "POST /api/v1/print/receipt"
+            "print": "POST /api/v1/print"
         },
         "documentation": "/docs",
         "features": [
             "ESC/POS text printing",
             "Raw ESC/POS command printing",
-            "Formatted receipt printing",
             "Network printer scanning",
             "Enhanced printer connectivity testing"
         ]
