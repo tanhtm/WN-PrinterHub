@@ -6,6 +6,8 @@ Handles loading and validation of environment variables.
 import os
 from typing import List
 import logging
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
