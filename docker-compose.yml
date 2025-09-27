@@ -18,10 +18,10 @@ services:
     network_mode: "host"
     # Mount project Cloudflare Tunnel config + credentials
     volumes:
-      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/${TUNNEL_YML}:/etc/cloudflared/${TUNNEL_YML}:ro
       - ./cloudflared/${TUNNEL_JSON}:/etc/cloudflared/${TUNNEL_JSON}:ro
     # Optional: wait for web (not strictly required but clarifies intent)
     depends_on:
       - printer
     # Run the named tunnel declared inside config.yml (explicit command for clarity)
-    command: tunnel --config /etc/cloudflared/config.yml run
+    command: tunnel --config /etc/cloudflared/${TUNNEL_YML} run
