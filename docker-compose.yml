@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  printer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: printer-dinehub
+    restart: always
+    network_mode: "host"
+    env_file:
+      - .env.docker
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared-printer-dine
+    restart: always
+    network_mode: "host"
+    # Mount project Cloudflare Tunnel config + credentials
+    volumes:
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ./cloudflared/${TUNNEL_JSON}:/etc/cloudflared/${TUNNEL_JSON}:ro
+    # Optional: wait for web (not strictly required but clarifies intent)
+    depends_on:
+      - printer
+    # Run the named tunnel declared inside config.yml (explicit command for clarity)
+    command: tunnel --config /etc/cloudflared/config.yml run

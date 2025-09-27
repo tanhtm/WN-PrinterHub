@@ -1,0 +1,10 @@
+## Named tunnel configuration (hard-coded to avoid env substitution issues inside config)
+tunnel: printer_dinehub_cloudflare_tunnel.json
+credentials-file: /etc/cloudflared/printer_dinehub_cloudflare_tunnel.json
+
+# Ingress rules (ordered). First match wins.
+ingress:
+  - hostname: printer-dine.whiteneuron.com
+    service: http://localhost:8088  # Use localhost when using host network mode
+  - service: http_status:404
+
