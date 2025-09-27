@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# ------------------ Base build image ------------------
-FROM python:3.11-slim AS base
+# ================== BUILD STAGE ==================
+FROM python:3.11-slim AS build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,17 +11,21 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# System build dependencies (uvicorn[standard] -> uvloop, httptools)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-       iputils-ping netcat-traditional \
+       build-essential curl iputils-ping netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
 
-RUN pip install --no-cache-dir uv \
-    && if [ -f uv.lock ]; then uv sync --frozen --no-dev; else uv pip install --system . ; fi
+# Install only runtime deps (no dev extras)
+RUN pip install --upgrade --no-cache-dir pip \
+    && pip install --no-cache-dir .
 
-# ------------------ Runtime image ------------------
+COPY app ./app
+
+# ================== RUNTIME STAGE ==================
 FROM python:3.11-slim AS runtime
 WORKDIR /app
 
@@ -30,21 +34,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     WN_HOST=0.0.0.0 \
     WN_PORT=8088 \
     WN_LOG_LEVEL=INFO \
-    USE_AUTH=true \
-    WN_PRINTER_DEFAULT_PORT=9100
+    WN_PRINTER_DEFAULT_PORT=9100 \
+    USE_AUTH=true
 
-RUN addgroup --system app && adduser --system --ingroup app app
+LABEL org.opencontainers.image.title="WN-PrinterHub" \
+      org.opencontainers.image.description="Local LAN printer connector (FastAPI)" \
+      org.opencontainers.image.source="https://github.com/whiteneuron/WN-PrinterHub" \
+      org.opencontainers.image.licenses="MIT"
 
-COPY --from=base /usr/local/lib/python3.11 /usr/local/lib/python3.11
-COPY --from=base /usr/local/bin /usr/local/bin
-
-COPY app ./app
+# Copy only what we need from build image (python + site-packages + app)
+COPY --from=build /usr/local/lib/python3.11 /usr/local/lib/python3.11
+COPY --from=build /usr/local/bin /usr/local/bin
+COPY --from=build /app/app ./app
 COPY README.md ./
 COPY LICENSE ./
 
+# Add a non-root user
+RUN addgroup --system app && adduser --system --ingroup app app \
+    && chown -R app:app /app
+
 EXPOSE 8088
 
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD python -c "import urllib.request,sys,os;url=f'http://127.0.0.1:{os.getenv('WN_PORT','8088')}/health';\ntry:\n  with urllib.request.urlopen(url, timeout=2) as r: sys.exit(0 if r.status==200 else 1)\nexcept Exception: sys.exit(1)" || exit 1
+# Lightweight healthcheck using curl
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD curl -fsS http://127.0.0.1:8088/health >/dev/null || exit 1
 
 USER app
 
